@@ -83,9 +83,7 @@ def test_np_arr():
     np_array_py(n0)
     np_array_nb(n0)
     np_array_cy(n0)
-    x = np_array_ac(n0)
-    print(x)
-    print(type(x))
+    np_array_ac(n0)
 
     timeit(np_array_py, n)
     timeit(np_array_nb, n)
@@ -127,7 +125,7 @@ def mixed_cy(m):
     return l
 
 
-@numba.jit
+@numba.jit(forceobj=True)
 def mixed_nb(m):
     l = list()
     for p in range(m):

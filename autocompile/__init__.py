@@ -6,12 +6,9 @@ from importlib import import_module
 from pathlib import Path
 from subprocess import check_call
 from typing import get_type_hints
-import numpy as np
-import numpy
 
 import cython
 from Cython.Build.Inline import cython_inline
-from Cython.Compiler.Errors import CompileError
 
 cython_file_template = """
 # cython: infer_types=True
@@ -24,9 +21,6 @@ cimport numpy as np
 
 class AutoCompile:
     def __init__(self, mode="inline", infer_types=False, checks_on=True):
-        self.BUILD_DIR_STR = "autocompile_tmp"
-        self.BUILD_DIR = Path(self.BUILD_DIR_STR)
-        self.BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
         self._type_conversion = {
             int: cython.long,
@@ -51,6 +45,9 @@ class AutoCompile:
         self.checks_on = checks_on
 
     def setup_tmp_file(self):
+        self.BUILD_DIR_STR = "autocompile_tmp"
+        self.BUILD_DIR = Path(self.BUILD_DIR_STR)
+        self.BUILD_DIR.mkdir(parents=True, exist_ok=True)
         self.tempfile = Path(self.BUILD_DIR, "autocompile.pyx")
         with self.tempfile.open("w") as open_tempfile:
             open_tempfile.write(self.cython_file_template)
@@ -122,7 +119,10 @@ class AutoCompile:
     def build_cython_function_definition(self, func, func_args):
         vars_string = ""
         for index, var in enumerate(func_args):
-            vars_string += f"{var['cython_type']} {var['name']} {var['default_value_str']},"
+            if index == len(func_args) - 1:
+                vars_string += f"{var['cython_type']} {var['name']} {var['default_value_str']}"
+            else:
+                vars_string += f"{var['cython_type']} {var['name']} {var['default_value_str']},"
         cython_def_lines = [f"def {func.__name__}({vars_string}):\n"]
         return cython_def_lines
 
@@ -200,8 +200,26 @@ class AutoCompile:
             return function_hash_name, cythonized_func
 
 
-# def autocompile(f, mode: str = "inline", infer_types: bool = False):
+# TODO add a return type to the inline function
 def autocompile(*ags, **kwgs):
+    """
+    mode: "inline" or "file", type: str, default: "inline"
+        "inline": uses Cython inline as a backend, works with all imported libraries
+        "file": moves code to a tmp file and cythonizes it using subprocess, doesn't work with any imported libraries
+    infer_types: True or False, type: Bool, default: False
+        Enable Cython infer type option
+    checks_on: True or False, type: Bool, default: False
+        Enable Cython boundary and wrapping checking
+    required_imports: {} or globals(), type: Dict, default: {}
+        This is required for access to the globals of the calling module. As Python in its infinite wisdom doesn't allow
+        access without explicitly passing them.
+        Example:
+            @autocompile(required_imports=globals())
+            def foo(bar: int):
+                x = np.arange(bar)
+                return x
+        Without passing globals, Cython inline conversion will error, as it doesn't know what np (numpy) is
+    """
     mode = "inline"
     infer_type = False
     checks_on = True
