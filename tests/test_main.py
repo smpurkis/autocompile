@@ -1,4 +1,4 @@
-from AutoCompile import autocompile
+from autocompile import *
 
 from functools import wraps
 from time import time
@@ -93,7 +93,7 @@ def test_np_arr():
     timeit(np_array_ac, n)
 
 
-@autocompile()
+@autocompile
 def mixed_ac(m: int):
     l: list
     x: dict
@@ -154,7 +154,7 @@ def mixed_py(m):
     return l
 
 
-@autocompile()
+@autocompile
 def lists_ac(m: int):
     i: int
     j: int
@@ -201,7 +201,7 @@ def lists_py(m):
     return x
 
 
-@autocompile()
+@autocompile
 def maths_ac(x: float):
     i: int
     for i in range(10000000):

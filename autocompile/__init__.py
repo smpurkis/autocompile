@@ -6,9 +6,12 @@ from importlib import import_module
 from pathlib import Path
 from subprocess import check_call
 from typing import get_type_hints
+import numpy as np
+import numpy
 
 import cython
 from Cython.Build.Inline import cython_inline
+from Cython.Compiler.Errors import CompileError
 
 cython_file_template = """
 # cython: infer_types=True
@@ -16,12 +19,11 @@ cython_file_template = """
 cimport cython
 import numpy as np
 cimport numpy as np
-
 """
 
 
 class AutoCompile:
-    def __init__(self, mode="inline", infer_types=False):
+    def __init__(self, mode="inline", infer_types=False, checks_on=True):
         self.BUILD_DIR_STR = "autocompile_tmp"
         self.BUILD_DIR = Path(self.BUILD_DIR_STR)
         self.BUILD_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,6 +48,7 @@ class AutoCompile:
             self.setup_tmp_file()
 
         self.infer_types = infer_types
+        self.checks_on = checks_on
 
     def setup_tmp_file(self):
         self.tempfile = Path(self.BUILD_DIR, "autocompile.pyx")
@@ -149,8 +152,11 @@ class AutoCompile:
                 cython_def_lines.append(var_string)
                 remove_lines.append(line)
 
-        checking_lines = ["@cython.boundscheck(False)\n",
-                          "@cython.wraparound(False)\n"]
+        if self.checks_on:
+            checking_lines = []
+        else:
+            checking_lines = ["@cython.boundscheck(False)\n",
+                              "@cython.wraparound(False)\n"]
         cython_function_lines = checking_lines + cython_def_lines + function_lines[def_line_index + 1:]
         [cython_function_lines.remove(line) for line in remove_lines]
         return cython_function_lines
@@ -198,16 +204,29 @@ class AutoCompile:
 def autocompile(*ags, **kwgs):
     mode = "inline"
     infer_type = False
+    checks_on = True
+    required_imports = {}
     if "mode" in kwgs:
         mode = kwgs["mode"]
     if "infer_type" in kwgs:
         infer_type = kwgs["infer_type"]
+    if "checks_on" in kwgs:
+        checks_on = kwgs["checks_on"]
+    if "required_imports" in kwgs:
+        required_imports = kwgs["required_imports"]
 
     def _autocompile(func):
-        ac = AutoCompile(mode=mode, infer_types=infer_type)
+        ac = AutoCompile(mode=mode,
+                         infer_types=infer_type,
+                         checks_on=checks_on)
+
         if callable(func):
-            mod = __import__(func.__module__)
-            for lib_name, lib in mod.__dict__.items():
+            libs = __import__(func.__module__)
+            for lib_name, lib in libs.__dict__.items():
+                if lib_name not in globals():
+                    globals()[lib_name] = lib
+        if len(required_imports) > 0:
+            for lib_name, lib in required_imports.items():
                 if lib_name not in globals():
                     globals()[lib_name] = lib
 
@@ -257,10 +276,6 @@ def autocompile(*ags, **kwgs):
             func = ags[0]
             return _autocompile(func)
     return _autocompile
-
-
-def ac(*args, **kwargs):
-    return autocompile(args, kwargs)
 
 
 if __name__ == '__main__':
