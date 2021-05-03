@@ -18,7 +18,7 @@ def do_maths(x: float):
 will be converted to:
 
 ```cython
-def maths_ac(double x):
+def do_maths(double x):
     cdef long i  
     for i in range(10000000):
         x += (i + x) ** 0.1
