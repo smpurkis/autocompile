@@ -1,11 +1,11 @@
-from autocompile import *
-
-from functools import wraps
+import random
+import string
 from time import time
 
-import cython
 import numba
 import numpy as np
+
+from autocompile import *
 
 
 def timeit(func, *args, **kwargs):
@@ -89,6 +89,23 @@ def test_np_arr():
     timeit(np_array_nb, n)
     timeit(np_array_cy, n)
     timeit(np_array_ac, n)
+
+
+def test_strings():
+    # define test variables
+    n0 = 10
+    n = 500000
+
+    # warm up/compile functions
+    string_py(n0)
+    string_nb(n0)
+    string_cy(n0)
+    string_ac(n0)
+
+    timeit(string_py, n)
+    timeit(string_nb, n)
+    timeit(string_cy, n)
+    timeit(string_ac, n)
 
 
 @autocompile
@@ -227,7 +244,7 @@ def maths_py(x: float):
     return [x]
 
 
-@autocompile
+@autocompile(required_imports=globals())
 def np_array_ac(x: int):
     total: float
     i: int
@@ -272,3 +289,47 @@ def np_array_py(x):
         for j in range(arr.shape[1]):
             total += arr[i][j]
     return total
+
+
+@autocompile(required_imports=globals())
+def string_ac(x: int):
+    i: int
+    s: str
+    letters: str
+    l: str
+
+    s = ""
+    letters = string.ascii_letters
+    for i in range(x):
+        l = random.choice(letters)
+        s += l
+    return s
+
+
+@cython.compile
+def string_cy(x):
+    s = ""
+    letters = string.ascii_letters
+    for i in range(x):
+        l = random.choice(letters)
+        s += l
+    return s
+
+
+@numba.jit(forceobj=True)
+def string_nb(x):
+    s = ""
+    letters = string.ascii_letters
+    for i in range(x):
+        l = random.choice(letters)
+        s += l
+    return s
+
+
+def string_py(x):
+    s = ""
+    letters = string.ascii_letters
+    for i in range(x):
+        l = random.choice(letters)
+        s += l
+    return s

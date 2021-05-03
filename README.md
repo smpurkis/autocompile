@@ -79,6 +79,13 @@ np_array_nb took: 0.053 seconds
 func_cy took: 1.07 seconds
 np_array_ac took: 1.141 seconds
 PASSED
+
+tests/test_main.py::test_strings
+string_py took: 0.208 seconds
+string_nb took: 4.542 seconds
+func_cy took: 4.768 seconds
+string_ac took: 0.188 seconds
+PASSED
 ```
 (note: this is using `cython.compile`, to compare against, as it is the closest function to `autocompile` (`ac`)).
 

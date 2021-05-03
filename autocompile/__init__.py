@@ -27,8 +27,6 @@ class AutoCompile:
             "int": cython.long,
             float: cython.double,
             "float": cython.double,
-            str: cython.char,
-            "str": cython.char,
             bool: cython.bint,
             "bool": cython.bint,
         }
