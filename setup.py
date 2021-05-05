@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="autocompile",
-    version="0.1.1",
+    version="0.1.2",
     author="Sam Purkis",
     author_email="sam.purkis@hotmail.co.uk",
     description="Speed up Python code that has well layed out type hints (works by converting the function to typed cython). Find more info at https://github.com/smpurkis/autocompile",
