@@ -63,7 +63,8 @@ class AutoCompile:
 
         return cythonized_func
 
-    def extract_variables_from_definition(self, func, vars):
+    def extract_variables_from_definition(self, func, function_lines, def_line_index):
+        vars = function_lines[def_line_index].split("(")[1].split(",")
         type_hints = get_type_hints(func)
         func_args = []
 
@@ -124,9 +125,22 @@ class AutoCompile:
         cython_def_lines = [f"def {func.__name__}({vars_string}):\n"]
         return cython_def_lines
 
-    def extract_function_body_type_hints(self, function_lines, cython_def_lines, def_line_index):
-        remove_lines = []
+    def remove_comments_from_function_lines(self, func, function_lines):
+        doc_lines = inspect.getdoc(func) or ""
+        doc_lines = [l.lstrip() for l in doc_lines.split("\n")]
+        cleaned_function_lines = []
         for line in function_lines:
+            formatted_line = line.lstrip().replace("\n", "")
+            if formatted_line not in doc_lines:
+                if formatted_line[0] not in ["#", '"', "'"]:
+                    cleaned_function_lines.append(line)
+        return cleaned_function_lines
+
+    def extract_function_body_type_hints(self, func, function_lines, cython_def_lines, def_line_index):
+        cleaned_function_lines = self.remove_comments_from_function_lines(func, function_lines)
+
+        remove_lines = []
+        for line in cleaned_function_lines:
             if ":" in line and "def" not in line:
                 var_string = ""
                 leading_spaces = "".join([" " for i in range(len(line) - len(line.lstrip()))])
@@ -160,13 +174,12 @@ class AutoCompile:
         return cython_function_lines
 
     def format_function_code_to_cython(self, func, function_lines, def_line_index, args, kwargs):
-        vars = function_lines[def_line_index].split("(")[1].split(",")
-        func_args = self.extract_variables_from_definition(func, vars)
+        func_args = self.extract_variables_from_definition(func, function_lines, def_line_index)
 
         func_args = self.extract_type_from_input_variables(func_args, args, kwargs)
 
         cython_def_lines = self.build_cython_function_definition(func, func_args)
-        cython_function_lines = self.extract_function_body_type_hints(function_lines, cython_def_lines, def_line_index)
+        cython_function_lines = self.extract_function_body_type_hints(func, function_lines, cython_def_lines, def_line_index)
 
         cython_function_code = "".join(cython_function_lines)
         return cython_function_code, cython_def_lines

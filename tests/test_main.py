@@ -26,7 +26,7 @@ def timeit(func, *args, **kwargs):
 def test_mixed_maths():
     # define test variables
     n0 = 1
-    n = 1_000
+    n = 10
 
     # warm up/compile functions
     maths_py(n0)
@@ -43,7 +43,7 @@ def test_mixed_maths():
 def test_list_type():
     # define test variables
     n0 = 1
-    n = 3_000
+    n = 1_000
 
     # warm up/compile functions
     lists_py(n0)
@@ -60,7 +60,7 @@ def test_list_type():
 def test_mixed_types():
     # define test variables
     n0 = 1
-    n = 200
+    n = 100
 
     # warm up/compile functions
     mixed_py(n0)
@@ -77,7 +77,7 @@ def test_mixed_types():
 def test_np_arr():
     # define test variables
     n0 = 2
-    n = 2000
+    n = 1000
 
     # warm up/compile functions
     np_array_py(n0)
@@ -94,7 +94,7 @@ def test_np_arr():
 def test_strings():
     # define test variables
     n0 = 10
-    n = 500000
+    n = 100000
 
     # warm up/compile functions
     string_py(n0)
@@ -107,6 +107,24 @@ def test_strings():
     timeit(string_cy, n)
     timeit(string_ac, n)
 
+def test_docstrings_and_comments():
+    docstring_comments(1)
+
+
+@autocompile
+def docstring_comments(x: int):
+    """
+
+    Args:
+        m: test (default: 4)
+
+    Returns: wfwef = wefwfe {32r: 2r32}
+    """
+    i: int
+    # hello world : can do
+    for i in range(1):
+        return
+
 
 @autocompile
 def mixed_ac(m: int):
@@ -115,6 +133,7 @@ def mixed_ac(m: int):
     t: float
     i: int
     j: int
+
 
     l = []
     for p in range(m):
