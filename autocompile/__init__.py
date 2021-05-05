@@ -85,7 +85,10 @@ class AutoCompile:
                 if "):\n" in default_value:
                     default_value = default_value[:-3]
                 default_value = eval(default_value)
-                default_value_str = f'= {default_value}'
+                if isinstance(default_value, str):
+                    default_value_str = f'= "{default_value}"'
+                else:
+                    default_value_str = f'= {default_value}'
                 if python_type is None:
                     python_type = type(default_value)
                     cython_type = self._type_conversion.get(python_type, "")  # TODO make default clever
