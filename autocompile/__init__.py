@@ -29,6 +29,8 @@ class AutoCompile:
             "float": cython.double,
             bool: cython.bint,
             "bool": cython.bint,
+            str: "str",
+            "str": "str"
         }
 
         self.cythonized_functions = {}
@@ -87,6 +89,7 @@ class AutoCompile:
                 default_value = eval(default_value)
                 if isinstance(default_value, str):
                     default_value_str = f'= "{default_value}"'
+                    default_value = f'"{default_value}"'
                 else:
                     default_value_str = f'= {default_value}'
                 if python_type is None:
@@ -144,11 +147,13 @@ class AutoCompile:
 
         remove_lines = []
         for line in cleaned_function_lines:
-            if ":" in line and "def" not in line:
+            if ":" in line and "def" not in line and "\'":
                 var_string = ""
                 leading_spaces = "".join([" " for i in range(len(line) - len(line.lstrip()))])
                 split_line = line.replace(" ", "").replace("\n", "").split(":")
                 var_name = split_line[0]
+                if "\'" in var_name or '\"' in var_name or "(" in var_name:
+                    break
                 if "[" in var_name:
                     continue
                 elif len(split_line) > 1:
