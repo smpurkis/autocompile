@@ -53,46 +53,54 @@ Here are a few benchmarks of speed improvements (all code is in `tests` folder):
 
 ```
 tests/test_main.py::test_mixed_maths 
-maths_py took: 1.049 seconds
-maths_nb took: 0.299 seconds
-func_cy took: 1.595 seconds
-maths_ac took: 0.298 seconds
+maths_py took: 1.263 seconds
+maths_nb took: 0.498 seconds
+func_cy took: 2.489 seconds
+maths_ac took: 0.486 seconds
 PASSED
 
 tests/test_main.py::test_list_type 
-lists_py took: 0.626 seconds
-lists_nb took: 0.311 seconds
-func_cy took: 0.251 seconds
-lists_ac took: 0.29 seconds
+lists_py took: 0.091 seconds
+lists_nb took: 0.042 seconds
+func_cy took: 0.049 seconds
+lists_ac took: 0.053 seconds
 PASSED
 
-tests/test_main.py::test_mixed_types
-mixed_py took: 0.939 seconds
-mixed_nb took: 1.268 seconds (had to force object mode)
-func_cy took: 0.748 seconds
-mixed_ac took: 0.173 seconds
+tests/test_main.py::test_mixed_types 
+mixed_py took: 0.513 seconds
+mixed_nb took: 0.292 seconds
+func_cy took: 0.199 seconds
+mixed_ac took: 0.064 seconds
 PASSED
 
-tests/test_main.py::test_np_arr
-np_array_py took: 1.185 seconds
-np_array_nb took: 0.053 seconds
-func_cy took: 1.07 seconds
-np_array_ac took: 1.141 seconds
+tests/test_main.py::test_np_arr_in_body 
+np_array_in_body_py took: 0.494 seconds
+np_array_in_body_nb took: 0.017 seconds
+func_cy took: 0.45 seconds
+np_array_in_body_ac took: 0.467 seconds
 PASSED
 
-tests/test_main.py::test_strings
-string_py took: 0.208 seconds
-string_nb took: 4.542 seconds
-func_cy took: 4.768 seconds
-string_ac took: 0.188 seconds
+tests/test_main.py::test_np_arr_in_args 
+np_array_in_args_py took: 0.443 seconds
+np_array_in_args_nb took: 0.011 seconds
+np_array_in_args_np took: 0.01 seconds
+np_array_in_args_ac took: 0.016 seconds
+PASSED
+
+tests/test_main.py::test_strings 
+string_py took: 0.049 seconds
+string_nb took: 0.795 seconds
+func_cy took: 0.721 seconds
+string_ac took: 0.038 seconds
 PASSED
 ```
-(note: this is using `cython.compile`, to compare against, as it is the closest function to `autocompile` (`ac`)).
+notes: 
+- The `test_strings` is using cython version `3.0a6`, using `<3.0` yields results similar to numba.
+- This is using `cython.compile`, to compare against, as it is the closest function to `autocompile` (`ac`).
 
 As can be seen, `ac` is best at a mixture of base Python types, lists, dicts, numbers. It offers
-no speed up for arrays at the moment.
+selective speed up for arrays at the moment (via numpy array inputs as arguments)
 
 Potential improvements:
 - Add support for return types (relatively straightforward)
-- Add support for automatically memory view (partially supported)
 - Add a backend like Nim or Julia (a lot of work)
