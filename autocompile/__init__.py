@@ -20,7 +20,7 @@ cimport numpy as np
 
 
 class AutoCompile:
-    def __init__(self, mode="inline", infer_types=False, checks_on=True):
+    def __init__(self, mode="inline", infer_types=False, checks_on=True, force_memview=False):
 
         self._type_conversion = {
             int: cython.long,
@@ -30,7 +30,11 @@ class AutoCompile:
             bool: cython.bint,
             "bool": cython.bint,
             str: "str",
-            "str": "str"
+            "str": "str",
+            "float64": cython.double,
+            "float32": cython.float,
+            "int32": cython.int,
+            "int64": cython.long
         }
 
         self.cythonized_functions = {}
@@ -43,6 +47,7 @@ class AutoCompile:
 
         self.infer_types = infer_types
         self.checks_on = checks_on
+        self.force_memview = force_memview
 
     def setup_tmp_file(self):
         self.BUILD_DIR_STR = "autocompile_tmp"
@@ -77,6 +82,8 @@ class AutoCompile:
             cython_type = self._type_conversion.get(python_type, None)
 
             if python_type is None:
+                cython_type = ""
+            elif "ndarray" in str(python_type):
                 cython_type = ""
             else:
                 if cython_type is None:
@@ -117,8 +124,17 @@ class AutoCompile:
         for i, arg in enumerate(args):
             if func_args_minus_kws[i]["cython_type"] == "":
                 func_args_minus_kws[i]["python_type"] = type(arg)
-                func_args_minus_kws[i]["cython_type"] = self._type_conversion.get(
-                    func_args_minus_kws[i]["python_type"], "")  # TODO make default clever
+                if "ndarray" in str(func_args_minus_kws[i]["python_type"]):
+                    np_type = arg.dtype
+                    cython_type = self._type_conversion.get(str(np_type), "")
+                    if cython_type == "":
+                        continue
+                    np_shape_len = len(arg.shape)
+                    func_args_minus_kws[i][
+                        "cython_type"] = f"{cython_type}[{':, '.join(['' for i in range(np_shape_len + 1)])[:-2]}]"
+                else:
+                    func_args_minus_kws[i]["cython_type"] = self._type_conversion.get(
+                        func_args_minus_kws[i]["python_type"], "")  # TODO make default clever
         return func_args
 
     def build_cython_function_definition(self, func, func_args):
@@ -162,6 +178,11 @@ class AutoCompile:
                 split_line = split_line[1].split("=")
                 python_type = split_line[0]
                 cython_type = self._type_conversion.get(python_type, None)
+                if "ndarray" in python_type:
+                    if self.force_memview:
+                        pass
+                    else:
+                        continue
                 if cython_type is None:
                     cython_type = python_type
                 if len(split_line) > 1:
@@ -187,7 +208,8 @@ class AutoCompile:
         func_args = self.extract_type_from_input_variables(func_args, args, kwargs)
 
         cython_def_lines = self.build_cython_function_definition(func, func_args)
-        cython_function_lines = self.extract_function_body_type_hints(func, function_lines, cython_def_lines, def_line_index)
+        cython_function_lines = self.extract_function_body_type_hints(func, function_lines, cython_def_lines,
+                                                                      def_line_index)
 
         cython_function_code = "".join(cython_function_lines)
         return cython_function_code, cython_def_lines
@@ -237,7 +259,10 @@ def autocompile(*ags, **kwgs):
             def foo(bar: int):
                 x = np.arange(bar)
                 return x
-        Without passing globals, Cython inline conversion will error, as it doesn't know what np (numpy) is
+        Without passing globals, Cython inline conversion will error, as it doesn't know what np (numpy) is.
+    force_memview: True or False, type: Bool, default: False (currently disabled)
+        Forces all declared numpy arrays to be treated at cython memview. Can be unsafe, as addition of memviews
+        in cython is not supported while for numpy arrays it is.
     """
     mode = "inline"
     infer_type = False
@@ -251,11 +276,14 @@ def autocompile(*ags, **kwgs):
         checks_on = kwgs["checks_on"]
     if "required_imports" in kwgs:
         required_imports = kwgs["required_imports"]
+    if "force_memview" in kwgs:
+        force_memview = kwgs["force_memview"]
 
     def _autocompile(func):
         ac = AutoCompile(mode=mode,
                          infer_types=infer_type,
-                         checks_on=checks_on)
+                         checks_on=checks_on,
+                         force_memview=force_memview)
 
         if callable(func):
             libs = __import__(func.__module__)

@@ -74,21 +74,38 @@ def test_mixed_types():
     timeit(mixed_ac, n)
 
 
-def test_np_arr():
+def test_np_arr_in_body():
     # define test variables
     n0 = 2
     n = 1000
 
     # warm up/compile functions
-    np_array_py(n0)
-    np_array_nb(n0)
-    np_array_cy(n0)
-    np_array_ac(n0)
+    np_array_in_body_py(n0)
+    np_array_in_body_nb(n0)
+    np_array_in_body_cy(n0)
+    np_array_in_body_ac(n0)
 
-    timeit(np_array_py, n)
-    timeit(np_array_nb, n)
-    timeit(np_array_cy, n)
-    timeit(np_array_ac, n)
+    timeit(np_array_in_body_py, n)
+    timeit(np_array_in_body_nb, n)
+    timeit(np_array_in_body_cy, n)
+    timeit(np_array_in_body_ac, n)
+
+
+def test_np_arr_in_args():
+    # define test variables
+    n0 = np.random.rand(10, 10)
+    n = np.random.rand(1000, 1000)
+
+    # warm up/compile functions
+    np_array_in_args_py(n0)
+    np_array_in_args_nb(n0)
+    np_array_in_args_np(n0)
+    np_array_in_args_ac(n0)
+
+    timeit(np_array_in_args_py, n)
+    timeit(np_array_in_args_nb, n)
+    timeit(np_array_in_args_np, n)
+    timeit(np_array_in_args_ac, n)
 
 
 def test_strings():
@@ -106,6 +123,7 @@ def test_strings():
     timeit(string_nb, n)
     timeit(string_cy, n)
     timeit(string_ac, n)
+
 
 def test_docstrings_and_comments():
     docstring_comments(1)
@@ -133,7 +151,6 @@ def mixed_ac(m: int):
     t: float
     i: int
     j: int
-
 
     l = []
     for p in range(m):
@@ -264,10 +281,11 @@ def maths_py(x: float):
 
 
 @autocompile(required_imports=globals())
-def np_array_ac(x: int):
+def np_array_in_body_ac(x: int):
     total: float
     i: int
     j: int
+    arr: np.ndarray
 
     arr = np.random.random((x, x))
     arr = arr.reshape(-1, *arr.shape[:-1]) * arr
@@ -279,7 +297,7 @@ def np_array_ac(x: int):
 
 
 @cython.compile
-def np_array_cy(x):
+def np_array_in_body_cy(x):
     arr = np.random.random((x, x))
     arr = arr.reshape(-1, *arr.shape[:-1]) * arr
     total = 0
@@ -290,7 +308,7 @@ def np_array_cy(x):
 
 
 @numba.njit
-def np_array_nb(x):
+def np_array_in_body_nb(x):
     arr = np.random.random((x, x))
     arr = arr.reshape(-1, *arr.shape[:-1]) * arr
     total = 0
@@ -300,13 +318,52 @@ def np_array_nb(x):
     return total
 
 
-def np_array_py(x):
+def np_array_in_body_py(x):
     arr = np.random.random((x, x))
     arr = arr.reshape(-1, *arr.shape[:-1]) * arr
     total = 0
     for i in range(arr.shape[0]):
         for j in range(arr.shape[1]):
             total += arr[i][j]
+    return total
+
+
+@autocompile(required_imports=globals())
+def np_array_in_args_ac(x: np.ndarray):
+    total: float
+    i: int
+    j: int
+
+    total = 0
+    x = x + np.random.rand(x.shape[0], x.shape[1])
+    for i in range(x.shape[0]):
+        for j in range(x.shape[1]):
+            total += x[i][j]
+    return total
+
+
+def np_array_in_args_np(x):
+    x = x + np.random.rand(x.shape[0], x.shape[1])
+    total = np.sum(x)
+    return total
+
+
+@numba.njit
+def np_array_in_args_nb(x):
+    total = 0
+    x = x + np.random.rand(x.shape[0], x.shape[1])
+    for i in range(x.shape[0]):
+        for j in range(x.shape[1]):
+            total += x[i][j]
+    return total
+
+
+def np_array_in_args_py(x):
+    total = 0
+    x = x + np.random.rand(x.shape[0], x.shape[1])
+    for i in range(x.shape[0]):
+        for j in range(x.shape[1]):
+            total += x[i][j]
     return total
 
 
