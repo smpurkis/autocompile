@@ -94,5 +94,5 @@ no speed up for arrays at the moment.
 
 Potential improvements:
 - Add support for return types (relatively straightforward)
-- Add support for automatically memory view (would solve array speed up issue)
+- Add support for automatically memory view (partially supported)
 - Add a backend like Nim or Julia (a lot of work)

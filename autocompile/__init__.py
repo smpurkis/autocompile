@@ -268,6 +268,7 @@ def autocompile(*ags, **kwgs):
     infer_type = False
     checks_on = True
     required_imports = {}
+    force_memview = False
     if "mode" in kwgs:
         mode = kwgs["mode"]
     if "infer_type" in kwgs:
