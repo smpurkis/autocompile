@@ -20,8 +20,12 @@ cimport numpy as np
 
 
 class AutoCompile:
+    """
+    Main Class that handles the logic of the formatting the function code
+    """
     def __init__(self, mode="inline", infer_types=False, checks_on=True, force_memview=False):
 
+        #  Simple 1 to 1 conversion of python types to cython types, aires on the side of caution
         self._type_conversion = {
             int: cython.long,
             "int": cython.long,
@@ -203,6 +207,10 @@ class AutoCompile:
         return cython_function_lines
 
     def format_function_code_to_cython(self, func, function_lines, def_line_index, args, kwargs):
+        """
+        Walk through the stages of extracting optimisation information
+        e.g. input variable types from arguments and type hints
+        """
         func_args = self.extract_variables_from_definition(func, function_lines, def_line_index)
 
         func_args = self.extract_type_from_input_variables(func_args, args, kwargs)
@@ -218,7 +226,9 @@ class AutoCompile:
         return hashlib.md5("".join(cython_def_lines).encode()).hexdigest()
 
     def cythonize_func_inline_method(self, func, function_lines, def_line_index, args, kwargs, hash_only=False):
-
+        """
+        Compiles the function if it hasn't been compile before, and stores the function for reuse
+        """
         cython_function_code, cython_def_lines = self.format_function_code_to_cython(
             func, function_lines, def_line_index, args, kwargs)
 
