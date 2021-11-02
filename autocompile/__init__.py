@@ -23,7 +23,8 @@ class AutoCompile:
     """
     Main Class that handles the logic of the formatting the function code
     """
-    def __init__(self, mode="inline", infer_types=False, checks_on=True, force_memview=False):
+
+    def __init__(self, mode="inline", infer_types=False, checks_on=True, debug=False, force_memview=False):
 
         #  Simple 1 to 1 conversion of python types to cython types, aires on the side of caution
         self._type_conversion = {
@@ -51,6 +52,7 @@ class AutoCompile:
 
         self.infer_types = infer_types
         self.checks_on = checks_on
+        self.debug = debug
         self.force_memview = force_memview
 
     def setup_tmp_file(self):
@@ -206,36 +208,49 @@ class AutoCompile:
         [cython_function_lines.remove(line) for line in remove_lines]
         return cython_function_lines
 
-    def format_function_code_to_cython(self, func, function_lines, def_line_index, args, kwargs):
+    def format_function_code_to_cython(self, func, function_lines, def_line_index, hash_only=False, *args, **kwargs):
         """
         Walk through the stages of extracting optimisation information
         e.g. input variable types from arguments and type hints
         """
         func_args = self.extract_variables_from_definition(func, function_lines, def_line_index)
-
         func_args = self.extract_type_from_input_variables(func_args, args, kwargs)
 
         cython_def_lines = self.build_cython_function_definition(func, func_args)
+        if hash_only:
+            return cython_def_lines
         cython_function_lines = self.extract_function_body_type_hints(func, function_lines, cython_def_lines,
                                                                       def_line_index)
 
         cython_function_code = "".join(cython_function_lines)
+        if self.debug:
+            python_function_code = "".join(function_lines)
+
+            print("Original Python Code:")
+            print(python_function_code)
+
+            print("\nGenerated Cython Code:")
+            print(cython_function_code)
         return cython_function_code, cython_def_lines
 
     def hash_func(self, cython_def_lines):
         return hashlib.md5("".join(cython_def_lines).encode()).hexdigest()
 
-    def cythonize_func_inline_method(self, func, function_lines, def_line_index, args, kwargs, hash_only=False):
+    def cythonize_func_inline_method(self, func, function_lines, def_line_index, hash_only=False, *args, **kwargs):
         """
         Compiles the function if it hasn't been compile before, and stores the function for reuse
         """
-        cython_function_code, cython_def_lines = self.format_function_code_to_cython(
-            func, function_lines, def_line_index, args, kwargs)
 
         if hash_only:
+            cython_def_lines = self.format_function_code_to_cython(
+                func, function_lines, def_line_index, hash_only=True, *args, **kwargs
+            )
             function_hash_name = self.hash_func(cython_def_lines)
             return function_hash_name
         else:
+            cython_function_code, cython_def_lines = self.format_function_code_to_cython(
+                func, function_lines, def_line_index, *args, **kwargs
+            )
             cythonized_func = cython_inline(cython_function_code, cython_compiler_directives={
                 "infer_types": self.infer_types,
             })
@@ -270,14 +285,17 @@ def autocompile(*ags, **kwgs):
                 x = np.arange(bar)
                 return x
         Without passing globals, Cython inline conversion will error, as it doesn't know what np (numpy) is.
+    debug: True or False, type: Bool, default: False
+        Shows the created function code to be used in place of the original
     force_memview: True or False, type: Bool, default: False (currently disabled)
         Forces all declared numpy arrays to be treated at cython memview. Can be unsafe, as addition of memviews
         in cython is not supported while for numpy arrays it is.
     """
     mode = "inline"
-    infer_type = False
+    infer_type = True
     checks_on = True
     required_imports = {}
+    debug = False
     force_memview = False
     if "mode" in kwgs:
         mode = kwgs["mode"]
@@ -287,6 +305,8 @@ def autocompile(*ags, **kwgs):
         checks_on = kwgs["checks_on"]
     if "required_imports" in kwgs:
         required_imports = kwgs["required_imports"]
+    if "debug" in kwgs:
+        debug = kwgs["debug"]
     if "force_memview" in kwgs:
         force_memview = kwgs["force_memview"]
 
@@ -294,6 +314,7 @@ def autocompile(*ags, **kwgs):
         ac = AutoCompile(mode=mode,
                          infer_types=infer_type,
                          checks_on=checks_on,
+                         debug=debug,
                          force_memview=force_memview)
 
         if callable(func):
