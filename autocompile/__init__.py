@@ -307,6 +307,8 @@ def update_globals(func, required_imports):
 
 # TODO add a return type to the inline function
 # TODO Check other backends, e.g. Pythran
+# TODO Track the functions that are compiled by Numba vs Cython and expose the Cythonized functions
+# using http://numba.pydata.org/numba-doc/latest/extending/high-level.html#importing-cython-functions
 def autocompile(*ags, **kwgs):
     """
     mode: "inline" or "file", type: str, default: "inline"

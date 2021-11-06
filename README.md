@@ -1,6 +1,6 @@
 # AutoCompile
 
-TLDR; Speed up Python code that is marked with type hints (by converting it to Cython)
+TLDR; Speed up Python code that is marked with type hints (by converting it to Cython and using Numba for Numpy)
 
 This is a package born slightly out of surprise when I found out that type hints don't 
 speed up Python code at all, when all the information is there to be able to speed it up. 
@@ -105,6 +105,15 @@ notes:
 
 As can be seen, `ac` is best at a mixture of base Python types, lists, dicts, numbers. It offers
 selective speed up for arrays at the moment (via numpy array inputs as arguments)
+
+Limitations:
+- One large limitations, recently added with the Numba backend, is numpy heavy functions
+declared with `ac` cannot call non-numpy functions declared with `ac` because the former
+is compiled using Numba (if possible) and the latter with Cython. The best way around 
+this is to separate numpy operations in functions separate from functions that don't and
+only calling the numpy heavy functions from the non-numpy functions. This is because
+Cython code has no issue calling Numba compiled functions. The inverse will currently
+crash.
 
 Potential improvements:
 - Add support for return types (relatively straightforward)
