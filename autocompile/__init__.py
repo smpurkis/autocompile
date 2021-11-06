@@ -306,6 +306,7 @@ def update_globals(func, required_imports):
 
 
 # TODO add a return type to the inline function
+# TODO Check other backends, e.g. Pythran
 def autocompile(*ags, **kwgs):
     """
     mode: "inline" or "file", type: str, default: "inline"
