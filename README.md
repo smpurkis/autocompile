@@ -30,8 +30,8 @@ def do_maths(double x):
 `@autocompile` has the following arguments:
 ```
     mode: "inline" or "file", type: str, default: "inline"
-        "inline": uses Cython inline as a backend, works with all imported libraries 
-        "file": moves code to a tmp file and cythonizes it using subprocess, doesn't work with any imported libraries 
+        "inline": uses Cython inline as a backend, works with all imported libraries
+        "file": moves code to a tmp file and cythonizes it using subprocess, doesn't work with any imported libraries
     infer_types: True or False, type: Bool, default: False
         Enable Cython infer type option
     checks_on: True or False, type: Bool, default: False
@@ -44,7 +44,12 @@ def do_maths(double x):
             def foo(bar: int):
                 x = np.arange(bar)
                 return x
-        Without passing globals, Cython inline conversion will error, as it doesn't know what np (numpy) is
+        Without passing globals, Cython inline conversion will error, as it doesn't know what np (numpy) is.
+    debug: True or False, type: Bool, default: False
+        Shows the created function code to be used in place of the original
+    force_memview: True or False, type: Bool, default: False (currently disabled)
+        Forces all declared numpy arrays to be treated at cython memview. Can be unsafe, as addition of memviews
+        in cython is not supported while for numpy arrays it is.
 ```
 
 ## Benchmark

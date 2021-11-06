@@ -8,14 +8,14 @@ from subprocess import check_call
 from typing import get_type_hints
 
 import cython
+import numba
+import numpy
 from Cython.Build.Inline import cython_inline
 
 cython_file_template = """
 # cython: infer_types=True
 # distutils: extra_compile_args = -Ofast -fopenmp
 cimport cython
-import numpy as np
-cimport numpy as np
 """
 
 
@@ -54,6 +54,7 @@ class AutoCompile:
         self.checks_on = checks_on
         self.debug = debug
         self.force_memview = force_memview
+        self.backend = "cython"
 
     def setup_tmp_file(self):
         self.BUILD_DIR_STR = "autocompile_tmp"
@@ -63,16 +64,19 @@ class AutoCompile:
         with self.tempfile.open("w") as open_tempfile:
             open_tempfile.write(self.cython_file_template)
 
-    def cythonize_func_file_method(self, filepath, function_code, func_name):
+    def cythonize_func_file_method(self, func, function_lines, def_line_index, filepath):
+        cython_function_code, cython_def_lines = self.format_function_code_to_cython(
+            func, function_lines, def_line_index
+        )
         with self.tempfile.open("a") as open_tempfile:
-            open_tempfile.write(function_code)
+            open_tempfile.write(cython_function_code)
 
-        proc_return = check_call(f"cythonize -i3 --inplace --force {filepath.as_posix()}".split())
+        proc_return = check_call(f"cythonize -i3 --inplace {filepath.as_posix()}".split())
         if proc_return != 0:
             raise Exception("Failed to Compile Function")
 
         autocythonfunctions = import_module(name=f"{self.BUILD_DIR_STR}.{self.tempfile.stem}")
-        cythonized_func = autocythonfunctions.__dict__.get(func_name)
+        cythonized_func = autocythonfunctions.__dict__.get(func.__name__)
 
         return cythonized_func
 
@@ -90,6 +94,7 @@ class AutoCompile:
             if python_type is None:
                 cython_type = ""
             elif "ndarray" in str(python_type):
+                self.backend = "numba"
                 cython_type = ""
             else:
                 if cython_type is None:
@@ -118,7 +123,22 @@ class AutoCompile:
                               "cython_type": cython_type,
                               "default_value": default_value,
                               "default_value_str": default_value_str})
-        return func_args
+
+        func_return_type = {
+            "python_type": None,
+            "cython_type": None,
+            "str": ""
+        }
+        if "return" in type_hints.keys():
+            python_type = type_hints.get("return")
+            cython_type = self._type_conversion.get(python_type, "")
+            func_return_type = {
+                "python_type": python_type,
+                "cython_type": cython_type,
+                "str": f" {cython_type}"
+            }
+
+        return func_args, func_return_type
 
     def extract_type_from_input_variables(self, func_args, args, kwargs):
         func_args_minus_kws = copy.copy(func_args)
@@ -130,27 +150,32 @@ class AutoCompile:
         for i, arg in enumerate(args):
             if func_args_minus_kws[i]["cython_type"] == "":
                 func_args_minus_kws[i]["python_type"] = type(arg)
-                if "ndarray" in str(func_args_minus_kws[i]["python_type"]):
-                    np_type = arg.dtype
-                    cython_type = self._type_conversion.get(str(np_type), "")
-                    if cython_type == "":
-                        continue
-                    np_shape_len = len(arg.shape)
-                    func_args_minus_kws[i][
-                        "cython_type"] = f"{cython_type}[{':, '.join(['' for i in range(np_shape_len + 1)])[:-2]}]"
-                else:
-                    func_args_minus_kws[i]["cython_type"] = self._type_conversion.get(
-                        func_args_minus_kws[i]["python_type"], "")  # TODO make default clever
+                # if "ndarray" in str(func_args_minus_kws[i]["python_type"]):
+                #     np_type = arg.dtype
+                #     cython_type = self._type_conversion.get(str(np_type), "")
+                #     if cython_type == "":
+                #         continue
+                #     np_shape_len = len(arg.shape)
+                #     func_args_minus_kws[i][
+                #         "cython_type"] = f"{cython_type}[{':, '.join(['' for i in range(np_shape_len + 1)])[:-2]}]"
+                # else:
+                #     func_args_minus_kws[i]["cython_type"] = self._type_conversion.get(
+                #         func_args_minus_kws[i]["python_type"], "")  # TODO make default clever
+                func_args_minus_kws[i]["cython_type"] = self._type_conversion.get(
+                    func_args_minus_kws[i]["python_type"], "")  # TODO make default clever
         return func_args
 
-    def build_cython_function_definition(self, func, func_args):
+    def build_cython_function_definition(self, func, func_args, func_return_type):
         vars_string = ""
         for index, var in enumerate(func_args):
             if index == len(func_args) - 1:
-                vars_string += f"{var['cython_type']} {var['name']} {var['default_value_str']}"
+                vars_string += f"{var['cython_type']} {var['name']}{'' if var['default_value_str'] == '' else ' ' + var['default_value_str']}"
             else:
-                vars_string += f"{var['cython_type']} {var['name']} {var['default_value_str']},"
-        cython_def_lines = [f"def {func.__name__}({vars_string}):\n"]
+                vars_string += f"{var['cython_type']} {var['name']}{'' if var['default_value_str'] == '' else ' ' + var['default_value_str']}, "
+        if self.mode == "file":
+            cython_def_lines = [f"cpdef{func_return_type['str']} {func.__name__}({vars_string}):\n"]
+        else:
+            cython_def_lines = [f"def {func.__name__}({vars_string}):\n"]
         return cython_def_lines
 
     def remove_comments_from_function_lines(self, func, function_lines):
@@ -185,6 +210,7 @@ class AutoCompile:
                 python_type = split_line[0]
                 cython_type = self._type_conversion.get(python_type, None)
                 if "ndarray" in python_type:
+                    self.backend = "numba"
                     if self.force_memview:
                         pass
                     else:
@@ -213,10 +239,10 @@ class AutoCompile:
         Walk through the stages of extracting optimisation information
         e.g. input variable types from arguments and type hints
         """
-        func_args = self.extract_variables_from_definition(func, function_lines, def_line_index)
+        func_args, func_return_type = self.extract_variables_from_definition(func, function_lines, def_line_index)
         func_args = self.extract_type_from_input_variables(func_args, args, kwargs)
 
-        cython_def_lines = self.build_cython_function_definition(func, func_args)
+        cython_def_lines = self.build_cython_function_definition(func, func_args, func_return_type)
         if hash_only:
             return cython_def_lines
         cython_function_lines = self.extract_function_body_type_hints(func, function_lines, cython_def_lines,
@@ -266,6 +292,19 @@ class AutoCompile:
             return function_hash_name, cythonized_func
 
 
+def update_globals(func, required_imports):
+    if callable(func):
+        libs = __import__(func.__module__)
+        for lib_name, lib in libs.__dict__.items():
+            if lib_name not in globals():
+                globals()[lib_name] = lib
+    if len(required_imports) > 0:
+        for lib_name, lib in required_imports.items():
+            if lib_name not in globals():
+                globals()[lib_name] = lib
+
+
+
 # TODO add a return type to the inline function
 def autocompile(*ags, **kwgs):
     """
@@ -311,12 +350,6 @@ def autocompile(*ags, **kwgs):
         force_memview = kwgs["force_memview"]
 
     def _autocompile(func):
-        ac = AutoCompile(mode=mode,
-                         infer_types=infer_type,
-                         checks_on=checks_on,
-                         debug=debug,
-                         force_memview=force_memview)
-
         if callable(func):
             libs = __import__(func.__module__)
             for lib_name, lib in libs.__dict__.items():
@@ -326,44 +359,51 @@ def autocompile(*ags, **kwgs):
             for lib_name, lib in required_imports.items():
                 if lib_name not in globals():
                     globals()[lib_name] = lib
+        # update_globals(func=func, required_imports=required_imports)
 
-        @wraps(func)
-        def run_func(*args, **kwargs):
+        ac = AutoCompile(
+            mode=mode,
+            infer_types=infer_type,
+            checks_on=checks_on,
+            debug=debug,
+            force_memview=force_memview
+        )
+
+        numba_njit_success = False
+        try:
+            numba_func = numba.njit(func)
+            ac.cythonized_functions[func] = numba_func
+            numba_njit_success = True
+        except Exception as e:
+            pass
+
+        if ac.mode == "file":
             function_lines = inspect.getsourcelines(func)[0]
             def_line_index = ["def" in line.lstrip()[:3] for line in function_lines].index(True)
 
             function_lines = inspect.getsourcelines(func)[0]
-            function_code = "".join(function_lines[def_line_index:])
-            function_hash_name = None
+            cythonized_func = ac.cythonize_func_file_method(
+                func=func,
+                function_lines=function_lines,
+                def_line_index=def_line_index,
+                filepath=ac.tempfile
+            )
+        elif ac.mode == "inline":
+            function_lines = inspect.getsourcelines(func)[0]
+            def_line_index = ["def" in line.lstrip()[:3] for line in function_lines].index(True)
 
-            if ac.mode == "file":
-                if func.__name__ in ac.cythonized_functions.keys():
-                    cythonized_func = ac.cythonized_functions[func.__name__]
-                else:
-                    cythonized_func = ac.cythonize_func_file_method(
-                        filepath=ac.tempfile,
-                        function_code=function_code,
-                        func_name=func.__name__)
-                    function_hash_name = func.__name__
-                    ac.cythonized_functions[function_hash_name] = cythonized_func
-            else:
-                function_hash_name = ac.cythonize_func_inline_method(
-                    func=func,
-                    function_lines=function_lines,
-                    def_line_index=def_line_index,
-                    args=args,
-                    kwargs=kwargs,
-                    hash_only=True)
-                if function_hash_name in ac.cythonized_functions.keys():
-                    cythonized_func = ac.cythonized_functions[function_hash_name]
-                else:
-                    function_hash_name, cythonized_func = ac.cythonize_func_inline_method(
-                        func=func,
-                        function_lines=function_lines,
-                        def_line_index=def_line_index,
-                        args=args,
-                        kwargs=kwargs)
-                    ac.cythonized_functions[function_hash_name] = cythonized_func
+            function_lines = inspect.getsourcelines(func)[0]
+            function_hash_name, cythonized_func = ac.cythonize_func_inline_method(
+                func=func,
+                function_lines=function_lines,
+                def_line_index=def_line_index
+            )
+
+        ac.cythonized_functions[func] = numba_func if numba_njit_success and ac.backend == "numba" else cythonized_func
+
+        @wraps(func)
+        def run_func(*args, **kwargs):
+            cythonized_func = ac.cythonized_functions.get(func, func)
             return cythonized_func(*args, **kwargs)
 
         return run_func
@@ -375,7 +415,7 @@ def autocompile(*ags, **kwgs):
     return _autocompile
 
 
-if __name__ == '__main__':
+if __name__ == '_main_':
 
     @autocompile
     def lists_ac(m: int):

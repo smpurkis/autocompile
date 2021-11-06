@@ -8,127 +8,6 @@ import numpy as np
 from autocompile import *
 
 
-def timeit(func, *args, **kwargs):
-    @wraps(func)
-    def benchmark():
-        try:
-            func_name = func.__name__  # will fail on cython compile functions
-        except Exception as e:
-            func_name = "func_cy"
-        s = time()
-        out = func(*args, **kwargs)
-        print(f"\n{func_name} took: {round(time() - s, 3)} seconds")
-        return out
-
-    return benchmark()
-
-
-def test_mixed_maths():
-    # define test variables
-    n0 = 1
-    n = 10
-
-    # warm up/compile functions
-    maths_py(n0)
-    maths_nb(n0)
-    maths_cy(n0)
-    maths_ac(n0)
-
-    timeit(maths_py, n)
-    timeit(maths_nb, n)
-    timeit(maths_cy, n)
-    timeit(maths_ac, n)
-
-
-def test_list_type():
-    # define test variables
-    n0 = 1
-    n = 1_000
-
-    # warm up/compile functions
-    lists_py(n0)
-    lists_nb(n0)
-    lists_cy(n0)
-    lists_ac(n0)
-
-    timeit(lists_py, n)
-    timeit(lists_nb, n)
-    timeit(lists_cy, n)
-    timeit(lists_ac, n)
-
-
-def test_mixed_types():
-    # define test variables
-    n0 = 1
-    n = 100
-
-    # warm up/compile functions
-    mixed_py(n0)
-    mixed_nb(n0)
-    mixed_cy(n0)
-    mixed_ac(n0)
-
-    timeit(mixed_py, n)
-    timeit(mixed_nb, n)
-    timeit(mixed_cy, n)
-    timeit(mixed_ac, n)
-
-
-def test_np_arr_in_body():
-    # define test variables
-    n0 = 2
-    n = 1000
-
-    # warm up/compile functions
-    np_array_in_body_py(n0)
-    np_array_in_body_nb(n0)
-    np_array_in_body_cy(n0)
-    np_array_in_body_ac(n0)
-
-    timeit(np_array_in_body_py, n)
-    timeit(np_array_in_body_nb, n)
-    timeit(np_array_in_body_cy, n)
-    timeit(np_array_in_body_ac, n)
-
-
-def test_np_arr_in_args():
-    # define test variables
-    n0 = np.random.rand(10, 10)
-    n = np.random.rand(1000, 1000)
-
-    # warm up/compile functions
-    np_array_in_args_py(n0)
-    np_array_in_args_nb(n0)
-    np_array_in_args_np(n0)
-    np_array_in_args_ac(n0)
-
-    timeit(np_array_in_args_py, n)
-    timeit(np_array_in_args_nb, n)
-    timeit(np_array_in_args_np, n)
-    timeit(np_array_in_args_ac, n)
-
-
-def test_strings():
-    # define test variables
-    n0 = 10
-    n = 100000
-
-    # warm up/compile functions
-    string_py(n0)
-    string_nb(n0)
-    string_cy(n0)
-    string_ac(n0)
-
-    timeit(string_py, n)
-    timeit(string_nb, n)
-    timeit(string_cy, n)
-    timeit(string_ac, n)
-
-
-def test_docstrings_and_comments():
-    docstring_comments(1)
-
-
 @autocompile
 def docstring_comments(x: int):
     """
@@ -178,7 +57,7 @@ def mixed_cy(m):
     return l
 
 
-@numba.jit(forceobj=True)
+@numba.jit
 def mixed_nb(m):
     l = list()
     for p in range(m):
@@ -392,7 +271,7 @@ def string_cy(x):
     return s
 
 
-@numba.jit(forceobj=True)
+@numba.jit
 def string_nb(x):
     s = ""
     letters = string.ascii_letters
@@ -409,3 +288,125 @@ def string_py(x):
         l = random.choice(letters)
         s += l
     return s
+
+
+def timeit(func, *args, **kwargs):
+    @wraps(func)
+    def benchmark():
+        try:
+            func_name = func.__name__  # will fail on cython compile functions
+        except Exception as e:
+            func_name = "func_cy"
+        s = time()
+        out = func(*args, **kwargs)
+        print(f"\n{func_name} took: {round(time() - s, 3)} seconds")
+        return out
+
+    return benchmark()
+
+
+def test_mixed_maths():
+    # define test variables
+    n0 = 1
+    n = 10
+
+    # warm up/compile functions
+    maths_py(n0)
+    maths_nb(n0)
+    maths_cy(n0)
+    maths_ac(n0)
+
+    timeit(maths_py, n)
+    timeit(maths_nb, n)
+    timeit(maths_cy, n)
+    timeit(maths_ac, n)
+
+
+def test_list_type():
+    # define test variables
+    n0 = 1
+    n = 1_000
+
+    # warm up/compile functions
+    lists_py(n0)
+    lists_nb(n0)
+    lists_cy(n0)
+    lists_ac(n0)
+
+    timeit(lists_py, n)
+    timeit(lists_nb, n)
+    timeit(lists_cy, n)
+    timeit(lists_ac, n)
+
+
+def test_mixed_types():
+    # define test variables
+    n0 = 1
+    n = 100
+
+    # warm up/compile functions
+    mixed_py(n0)
+    mixed_nb(n0)
+    mixed_cy(n0)
+    mixed_ac(n0)
+
+    timeit(mixed_py, n)
+    timeit(mixed_nb, n)
+    timeit(mixed_cy, n)
+    timeit(mixed_ac, n)
+
+
+def test_np_arr_in_body():
+    # define test variables
+    n0 = 2
+    n = 1000
+
+    # warm up/compile functions
+    np_array_in_body_py(n0)
+    np_array_in_body_nb(n0)
+    np_array_in_body_cy(n0)
+    np_array_in_body_ac(n0)
+
+    timeit(np_array_in_body_py, n)
+    timeit(np_array_in_body_nb, n)
+    timeit(np_array_in_body_cy, n)
+    timeit(np_array_in_body_ac, n)
+
+
+def test_np_arr_in_args():
+    # define test variables
+    n0 = np.random.rand(10, 10)
+    n = np.random.rand(1000, 1000)
+
+    # warm up/compile functions
+    np_array_in_args_py(n0)
+    np_array_in_args_nb(n0)
+    np_array_in_args_np(n0)
+    np_array_in_args_ac(n0)
+
+    timeit(np_array_in_args_py, n)
+    timeit(np_array_in_args_nb, n)
+    timeit(np_array_in_args_np, n)
+    timeit(np_array_in_args_ac, n)
+
+
+def test_strings():
+    # define test variables
+    n0 = 10
+    n = 100000
+
+    # warm up/compile functions
+    string_py(n0)
+    string_nb(n0)
+    string_cy(n0)
+    string_ac(n0)
+
+    timeit(string_py, n)
+    timeit(string_nb, n)
+    timeit(string_cy, n)
+    timeit(string_ac, n)
+
+
+def test_docstrings_and_comments():
+    docstring_comments(1)
+
